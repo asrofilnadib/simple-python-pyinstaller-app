@@ -2,7 +2,7 @@ node {
     stage('Build') {
         def pythonImage = docker.image('python:2-alpine')
         pythonImage.inside {
-            sh 'python -m py_compile sources/add2vals.py sources/calc.py'
+            sh 'python -m py_compile /sources/add2vals.py /sources/calc.py'
         }
     }
 
