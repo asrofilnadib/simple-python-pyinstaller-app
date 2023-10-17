@@ -19,4 +19,5 @@ node {
             }
             archiveArtifacts artifacts: 'dist/add2vals', allowEmptyArchive: true
        }
+    }
 }
