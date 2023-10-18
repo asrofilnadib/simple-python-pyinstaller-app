@@ -29,7 +29,7 @@ pipeline {
         stage('Deliver') {
             agent {
                 docker {
-                    image 'cdxr/pyinstaller-linux:python3'
+                    image 'cdxr/pyinstaller-linux'
                     args "--entrypoint=''"
                 }
             }
