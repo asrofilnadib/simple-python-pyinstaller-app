@@ -26,6 +26,7 @@ pipeline {
                 }
             }
         }
+        }
         stage('Deliver') {
                  docker.image('cdxr/pyinstaller-linux:python3').withRun('-e', "entrypoint=''").inside {
                      sh 'pyinstaller --onefile sources/add2vals.py'
