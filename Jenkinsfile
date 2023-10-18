@@ -26,16 +26,21 @@ pipeline {
                 }
             }
         }
-        }
         stage('Deliver') {
-                 docker.image('cdxr/pyinstaller-linux:python3').withRun('-e', "entrypoint=''").inside {
-                     sh 'pyinstaller --onefile sources/add2vals.py'
-                 }
-                 post {
-                     success {
-                         archiveArtifacts 'dist/add2vals'
-                     }
-                 }
+            agent {
+                docker {
+                    image 'cdxr/pyinstaller-linux:python3'
+                    args "--entrypoint=''"
+                }
+            }
+            steps {
+                sh 'pyinstaller --onefile sources/add2vals.py'
+            }
+            post {
+                success {
+                    archiveArtifacts 'dist/add2vals'
+                }
+            }
         }
     }
 }
