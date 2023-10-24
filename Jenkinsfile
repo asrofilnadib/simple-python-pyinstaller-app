@@ -1,48 +1,63 @@
-node {
-    try {
+pipeline {
+    agent none
+    options {
+        skipStagesAfterUnstable()
+    }
+    stages {
         stage('Build') {
-            def image = docker.image('python:3.12.0-alpine3.18')
-            image.inside {
+            agent {
+                docker {
+                    image 'python:3.12.0-alpine3.18'
+                }
+            }
+            steps {
                 sh 'python -m py_compile sources/add2vals.py sources/calc.py'
                 stash(name: 'compiled-results', includes: 'sources/*.py*')
             }
         }
-
         stage('Test') {
-            def testImage = docker.image('qnib/pytest')
-            testImage.inside {
-                sh 'py.test --junit-xml test-reports/results.xml sources/test_calc.py'
-            }
-            junit 'test-reports/results.xml'
-        }
-
-        stage('Manual Approval') {
-            input message: 'Lanjutkan ke tahap Deploy? (Klik "Proceed" untuk melanjutkan)'
-        }
-
-        stage('Deliver') {
-            def volume = '$(pwd)/sources:/src'
-            def image = docker.image('cdrx/pyinstaller-linux:python2')
-            image.inside("-v ${volume}") {
-                dir("${env.BUILD_ID}") {
-                    unstash(name: 'compiled-results')
-                    sh "pyinstaller -F add2vals.py"
+            agent {
+                docker {
+                    image 'qnib/pytest'
                 }
             }
-
-            archiveArtifacts artifacts: "${env.BUILD_ID}/sources/dist/add2vals", allowEmptyArchive: true
-
-            def cleanupImage = docker.image('cdrx/pyinstaller-linux:python2')
-            cleanupImage.inside("-v ${volume}") {
-                sh "rm -rf build dist"
+            steps {
+                sh 'py.test --junit-xml test-reports/results.xml sources/test_calc.py'
             }
-
-            sleep time: 1, unit: 'MINUTE'
+            post {
+                always {
+                    junit 'test-reports/results.xml'
+                }
+            }
         }
-    } catch (Exception e) {
-        currentBuild.result = 'FAILURE'
-        throw e
-    } finally {
-        junit '**/test-reports/*.xml'
+        stage('Manual Approval') {
+            agent any
+            steps {
+                input message: 'Lanjutkan ke tahap Deploy? (Klik "Proceed" untuk melanjutkan)'
+            }
+        }
+        stage('Deliver') {
+            agent any
+            environment {
+                VOLUME = '$(pwd)/sources:/src'
+                IMAGE = 'cdrx/pyinstaller-linux:python2'
+            }
+            steps {
+                dir(path: env.BUILD_ID) {
+                    unstash(name: 'compiled-results')
+                    sh "docker run --rm -v ${VOLUME} ${IMAGE} 'pyinstaller -F add2vals.py'"
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts "${env.BUILD_ID}/sources/dist/add2vals"
+                    sh "docker run --rm -v ${VOLUME} ${IMAGE} 'rm -rf build dist'"
+                    script {
+                        sleep(time: 1, unit: 'MINUTES')
+                    }
+                }
+
+            }
+        }
     }
 }
